@@ -1,8 +1,17 @@
 services:
   react:
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     volumes:
       - ./frontend:/app
+    command: >
+      sh -lc 'cd /app &&
+      if [ ! -f package.json ]; then
+        echo ">> No hay package.json: creando proyecto Vite...";
+        npx --yes create-vite@latest . -- --template react && npm install;
+      else
+        echo ">> package.json encontrado";
+        if [ ! -d node_modules ]; then npm install; fi;
+      fi;
+      npm run dev -- --host 0.0.0.0'
   llm-service:
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     volumes:

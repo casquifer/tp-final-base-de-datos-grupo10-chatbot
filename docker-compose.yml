@@ -1,4 +1,3 @@
-
 services:
   nginx:
     image: nginx:1.25-alpine
@@ -44,16 +43,16 @@ services:
     networks: [appnet]
 
   react:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: node:20-alpine
     container_name: react
+    working_dir: /app
     environment:
       - VITE_API_URL=${VITE_API_URL}
-      - NODE_ENV=production
+      - NODE_ENV=development
     ports:
       - "${REACT_PORT}:5173"
     networks: [appnet]
+    # El comando real para dev lo define docker-compose.dev.yml
 
   ollama:
     image: ollama/ollama:latest
@@ -73,6 +72,7 @@ services:
   llm-service:
     build:
       context: ./llm-service
+      dockerfile: Dockerfile
     container_name: llm-service
     environment:
       - OLLAMA_URL=http://ollama:11434

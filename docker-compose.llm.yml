@@ -1,0 +1,16 @@
+services:
+  llm-service:
+    build:
+      context: ./llm-service
+      dockerfile: Dockerfile
+    container_name: llm-service
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - LLM_MODEL=${LLM_MODEL:-llama3.2:3b}
+    ports:
+      - "${LLM_PORT}:8000"
+    networks: [chatnet]
+
+networks:
+  chatnet:
+    external: true

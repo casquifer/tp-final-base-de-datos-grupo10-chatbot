@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import httpx, os, re
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
+LLM_MODEL  = os.getenv("LLM_MODEL", "llama3.2:3b")  # liviano por defecto
 
 SYSTEM = """Eres un asistente que traduce preguntas a SQL SEGURO.
 - Solo SELECT sobre tablas/vistas permitidas.
@@ -26,8 +27,10 @@ async def nl2sql(q: NLQuery):
     prompt = f"{SYSTEM}\nP: {q.question}\nSQL:"
     try:
         async with httpx.AsyncClient(timeout=120) as client:
-            r = await client.post(f"{OLLAMA_URL}/api/generate",
-                                  json={"model":"llama3.1:8b","prompt":prompt,"stream":False})
+            r = await client.post(
+                f"{OLLAMA_URL}/api/generate",
+                json={"model": LLM_MODEL, "prompt": prompt, "stream": False},
+            )
             r.raise_for_status()
             sql = r.json().get("response","").strip()
             if re.search(r'\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER)\b', sql, re.I):

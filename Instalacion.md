@@ -4,25 +4,25 @@ git clone https://github.com/casquifer/tp-final-base-de-datos-grupo10-chatbot.gi
 cd tp-final-base-de-datos-grupo10-chatbot
 ```
 
-- Estructura de carpetas:
-tp-final-base-de-datos-grupo10-chatbot/
-├─ .env
-├─ docker-compose.db.yml
-├─ docker-compose.backend.yml
-├─ docker-compose.frontend.yml
-├─ docker-compose.ollama.yml
-├─ docker-compose.llm.yml
-├─ backend/
-│  ├─ app/                # <- acá se creará Laravel (vacío ahora)
-│  ├─ docker/
-│  │  └─ Dockerfile
-│  └─ nginx/
-│     └─ default.conf
-├─ frontend/              # <- acá se creará React (vacío ahora)
-└─ llm-service/
-   ├─ Dockerfile
-   ├─ requirements.txt
-   └─ main.py
+- Estructura de carpetas:<br>
+tp-final-base-de-datos-grupo10-chatbot/<br>
+├─ .env<br>
+├─ docker-compose.db.yml<br>
+├─ docker-compose.backend.yml<br>
+├─ docker-compose.frontend.yml<br>
+├─ docker-compose.ollama.yml<br>
+├─ docker-compose.llm.yml<br>
+├─ backend/<br>
+│  ├─ app/                # <- acá se creará Laravel (vacío ahora)<br>
+│  ├─ docker/<br>
+│  │  └─ Dockerfile<br>
+│  └─ nginx/<br>
+│     └─ default.conf<br>
+├─ frontend/              # <- acá se creará React (vacío ahora)<br>
+└─ llm-service/<br>
+   ├─ Dockerfile<br>
+   ├─ requirements.txt<br>
+   └─ main.py<br>
 
 - 2- Crear branch proyecto-base, hacer checkout a esa rama y pullear:
 ```bash

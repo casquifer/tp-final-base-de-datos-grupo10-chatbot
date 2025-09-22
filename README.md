@@ -42,7 +42,7 @@ tp-final-base-de-datos-grupo10-chatbot/<br>
 
 <br>
 
-1- Clonar el repo<br><br>
+1- Clonar el repo, crear rama dev, hacer checkout a dev y empezar la instalación.<br><br>
 (A partir de acá siempre ejecutamos todo parados en el directorio raíz "tp-final-base-de-datos-grupo10-chatbot")<br>
 
 2- Crear la red docker entre los contenedores:<br>

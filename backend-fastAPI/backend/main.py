@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Query, HTTPException
-import google.generativeai as genai
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_community.chat_models import ChatOllama
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.schema import StrOutputParser
@@ -9,27 +8,29 @@ from contextlib import contextmanager
 import os
 import time
 
-app = FastAPI(title="Chatbot - FAQs")
+# ---------------------------------------------------------
+# 🚀 Configuración general
+# ---------------------------------------------------------
+app = FastAPI(title="Chatbot - FAQs (Ollama Local)")
 
-# configuracion de mysql
+# Configuración de conexión a MySQL
 MYSQL_CONFIG = {
-    "host": os.getenv("MYSQL_HOST", "mysql"),
+    "host": os.getenv("MYSQL_HOST", "mysql"),           # nombre del servicio en docker-compose
     "user": os.getenv("MYSQL_USER", "root"),
     "password": os.getenv("MYSQL_PASSWORD", "santi"),
     "database": os.getenv("MYSQL_DATABASE", "prueba")
 }
 
-# configuracion de llm - Gemini
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
-
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=GEMINI_API_KEY,
+# Configuración del modelo local de Ollama
+llm = ChatOllama(
+    base_url="http://ollama:11434",  # nombre del contenedor en docker
+    model="llama3.2:3b",
     temperature=0.3
 )
 
-# conexion a la BBDD
+# ---------------------------------------------------------
+# 🔌 Conexión a la base de datos
+# ---------------------------------------------------------
 @contextmanager
 def get_db_connection(retries=10, delay=3):
     conn = None
@@ -46,7 +47,9 @@ def get_db_connection(retries=10, delay=3):
     if conn and conn.is_connected():
         conn.close()
 
-# funcion principal - toma pregunta -> IA procesa pregunta + BBDD + prompt -> devuelve respuesta
+# ---------------------------------------------------------
+# 🧩 Función principal: responder FAQs con contexto de la BBDD
+# ---------------------------------------------------------
 def responder_faqs(pregunta: str) -> str:
     with get_db_connection() as db:
         cursor = db.cursor(dictionary=True)
@@ -62,15 +65,16 @@ def responder_faqs(pregunta: str) -> str:
     prompt_template = PromptTemplate.from_template(
         """
         Eres un asistente experto en atención al cliente.
-        A partir de las siguientes FAQs, elige las más relacionadas con la pregunta del usuario y genera una respuesta útil y breve.
-        
+        A partir de las siguientes FAQs, elegí las más relacionadas con la pregunta del usuario
+        y generá una respuesta breve, útil y en tono amable.
+
         FAQs disponibles:
         {contexto}
 
         Pregunta del usuario:
         {pregunta}
 
-        Responde en tono amable y claro:
+        Responde de manera clara y directa:
         """
     )
 
@@ -78,10 +82,12 @@ def responder_faqs(pregunta: str) -> str:
     respuesta = chain.invoke({"contexto": contexto, "pregunta": pregunta})
     return respuesta.strip()
 
-# endpoints
+# ---------------------------------------------------------
+# 🌐 Endpoints
+# ---------------------------------------------------------
 @app.get("/")
 def root():
-    return {"message": "API Chatbot FAQs con LangChain y Gemini"}
+    return {"message": "API Chatbot FAQs con LangChain + Ollama local"}
 
 @app.get("/preguntar")
 def preguntar(pregunta: str = Query(..., min_length=3, description="Pregunta del usuario")):
@@ -90,7 +96,7 @@ def preguntar(pregunta: str = Query(..., min_length=3, description="Pregunta del
         return {
             "pregunta": pregunta,
             "respuesta": respuesta,
-            "modelo": "gemini-2.5-flash",
+            "modelo": "llama3.2:3b",
             "status": "success"
         }
     except HTTPException:

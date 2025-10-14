@@ -20,3 +20,28 @@
 # Instalación
 
 - Leer y seguir las instrucciones del archivo "Instalacion.txt"
+
+
+
+# Para correr el mambo con Ollama
+
+1. Tuve que tocar el main.py, el .env y el requirements.txt
+
+### Ollama
+sudo docker compose -f docker-compose.ollama.yml up -d
+(sudo docker compose -f docker-compose.ollama.yml down -v)
+
+sudo docker exec -it ollama bash
+ollama pull llama3.2:3b
+
+******
+### Back de Py
+sudo docker compose -f docker-compose.backpy.yml up -d
+(sudo docker compose -f docker-compose.backpy.yml down -v)
+
+sudo docker compose -f docker-compose.backpy.yml up -d --build
+
+
+### Si el back no puede mandar bien curls
+sudo docker exec -it fastapi-backend bash
+apt update && apt install -y curl

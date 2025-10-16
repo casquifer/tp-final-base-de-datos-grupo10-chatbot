@@ -56,7 +56,6 @@ export default function ChatBotPage() {
   const sendMessage = (text) => {
     if (!text.trim()) return;
 
-    // Crear ID automático
     const auto = Number(localStorage.getItem("mock_autoinc") || "1000") + 1;
     localStorage.setItem("mock_autoinc", String(auto));
 
@@ -74,7 +73,6 @@ export default function ChatBotPage() {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
 
-    // Respuesta automática del bot
     setTimeout(() => {
       const botAutoId = Number(localStorage.getItem("mock_autoinc")) + 1;
       localStorage.setItem("mock_autoinc", String(botAutoId));
@@ -83,7 +81,7 @@ export default function ChatBotPage() {
         id: botAutoId,
         id_usuario: userId,
         fecha: nowStr(),
-        texto: "¡Hola! Esta es una respuesta automática 👋",
+        texto: "¡Hola! ¿Todo Piola?",
         tipo: "bot",
       };
 
@@ -128,10 +126,14 @@ export default function ChatBotPage() {
 
       <div className="chat-input">
         <textarea
-          rows="2"
+          rows="1"
           placeholder="Escribí tu mensaje…"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            e.target.style.height = "auto"; // reset altura
+            e.target.style.height = e.target.scrollHeight + "px"; // ajustar a contenido
+          }}
           onKeyDown={handleKey}
         />
         <button className="btn primary" onClick={() => sendMessage(input)}>

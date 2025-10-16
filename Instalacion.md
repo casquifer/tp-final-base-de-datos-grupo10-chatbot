@@ -105,3 +105,13 @@ docker compose -f docker-compose.frontend.yml logs -f react
 - 16- Listo! Podemos ver el front en http://localhost:5173/
 
 
+- Extra: si necesitas bajar o subir de versión de Ollama, tenés que ejecutar esto:
+```bash
+docker compose -f docker-compose.ollama.yml exec ollama \
+  ollama pull llama3.2:1b
+```
+<br>
+Y cambiar en el .env del back esta línea:
+```bash
+LLM_MODEL=llama3.2:1b
+```

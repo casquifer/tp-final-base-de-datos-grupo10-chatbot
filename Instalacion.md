@@ -111,7 +111,13 @@ docker compose -f docker-compose.ollama.yml exec ollama \
   ollama pull llama3.2:1b
 ```
 <br>
-Y cambiar en el .env del back esta línea:
-```bash
+Y cambiar en el .env del back esta línea:<br>
 LLM_MODEL=llama3.2:1b
+<br>
+
+- Refrescar el cache del back:
+```bash
+docker compose -f docker-compose.backend.yml exec php bash -lc '
+  cd /var/www/app && php artisan config:clear && php artisan cache:clear
+'
 ```

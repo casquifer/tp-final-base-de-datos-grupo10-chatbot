@@ -19,4 +19,4 @@
 
 # Instalación
 
-- Leer y seguir las instrucciones del archivo "Instalacion.txt"
+- Leer y seguir las instrucciones del archivo "Instalacion.md"

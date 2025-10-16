@@ -34,7 +34,7 @@ export default function ChatBotPage() {
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  // ======================
+  // =======================
   // Cargar mensajes al inicio
   // ======================
   useEffect(() => {

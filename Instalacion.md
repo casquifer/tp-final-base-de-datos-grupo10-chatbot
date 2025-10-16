@@ -110,10 +110,11 @@ docker compose -f docker-compose.frontend.yml logs -f react
 docker compose -f docker-compose.ollama.yml exec ollama \
   ollama pull llama3.2:1b
 ```
-<br>
-Y cambiar en el .env del back esta línea:<br>
+
+- Y cambiar en el .env del back esta línea:<br>
+```bash
 LLM_MODEL=llama3.2:1b
-<br>
+```
 
 - Refrescar el cache del back:
 ```bash

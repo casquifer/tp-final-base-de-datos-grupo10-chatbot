@@ -107,3 +107,41 @@ body{
   color: #fff;
   cursor: pointer;
 }
+
+.typing-dot {
+  display: inline-block;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to { visibility: hidden; }
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--color-primario, #0077cc);
+  color: white;
+  padding: 0.5em 1em;
+  border-radius: 8px 8px 0 0;
+}
+
+.btn.clear {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.6);
+  color: white;
+  padding: 0.3em 0.8em;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn.clear:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+.btn.clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

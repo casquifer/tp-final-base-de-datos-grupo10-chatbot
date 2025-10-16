@@ -1,13 +1,16 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import "./Chatbot.css";
+import { sendChat } from "../../lib/api";
 
-const MOCK_KEY = "mock_consultas_rows";
+const STORAGE_KEY = "chat_consultas_rows";
+const AUTOINC_KEY = "chat_autoinc";
 
 export default function ChatBotPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [pending, setPending] = useState(false);
   const messagesEndRef = useRef(null);
-  const userId = 1; // Siempre fijo, no se muestra en UI
+  const userId = 1; // fijo
 
   // ======================
   // Helpers
@@ -18,20 +21,26 @@ export default function ChatBotPage() {
 
   const readAll = () => {
     try {
-      return JSON.parse(localStorage.getItem(MOCK_KEY) || "[]");
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
     } catch {
       return [];
     }
   };
 
   const writeAll = (rows) => {
-    localStorage.setItem(MOCK_KEY, JSON.stringify(rows));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
   };
 
   const nowStr = () => {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const nextId = () => {
+    const current = Number(localStorage.getItem(AUTOINC_KEY) || "1000") + 1;
+    localStorage.setItem(AUTOINC_KEY, String(current));
+    return current;
   };
 
   // ======================
@@ -44,58 +53,110 @@ export default function ChatBotPage() {
   }, []);
 
   // ======================
-  // Scroll automático cada vez que cambian los mensajes
+  // Scroll automático
   // ======================
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   // ======================
-  // Enviar mensaje
+  // Construye el historial
   // ======================
-  const sendMessage = (text) => {
-    if (!text.trim()) return;
+  const buildHistory = useMemo(
+    () => (msgs) => {
+      const mapped = msgs.map((m) => ({
+        role: m.tipo === "bot" ? "assistant" : "user",
+        content: m.texto,
+      }));
+      const MAX = 24; // últimas 12 interacciones (user+bot)
+      return mapped.slice(-MAX);
+    },
+    []
+  );
 
-    // Crear ID automático
-    const auto = Number(localStorage.getItem("mock_autoinc") || "1000") + 1;
-    localStorage.setItem("mock_autoinc", String(auto));
+  // ======================
+  // Enviar mensaje al backend
+  // ======================
+  const sendMessage = async (text) => {
+    const trimmed = text.trim();
+    if (!trimmed || pending) return;
 
+    // Mensaje del usuario
     const userMsg = {
-      id: auto,
+      id: nextId(),
       id_usuario: userId,
       fecha: nowStr(),
-      texto: text,
+      texto: trimmed,
       tipo: "user",
     };
 
     const all = readAll();
-    all.push(userMsg);
-    writeAll(all);
+    const newAll = [...all, userMsg];
+    writeAll(newAll);
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
 
-    // Respuesta automática del bot
-    setTimeout(() => {
-      const botAutoId = Number(localStorage.getItem("mock_autoinc")) + 1;
-      localStorage.setItem("mock_autoinc", String(botAutoId));
+    // Placeholder de “Escribiendo…”
+    const typingMsg = {
+      id: nextId(),
+      id_usuario: userId,
+      fecha: nowStr(),
+      texto: "Escribiendo…",
+      tipo: "bot",
+      typing: true,
+    };
+    writeAll([...newAll, typingMsg]);
+    setMessages((prev) => [...prev, typingMsg]);
+    setPending(true);
+
+    try {
+      const history = buildHistory(newAll);
+      const replyText = await sendChat({ userId, message: trimmed, history });
 
       const botMsg = {
-        id: botAutoId,
-        id_usuario: userId,
-        fecha: nowStr(),
-        texto: "¡Hola! Esta es una respuesta automática 👋",
-        tipo: "bot",
+        ...typingMsg,
+        texto: replyText,
+        typing: false,
       };
 
-      const allUpdated = readAll();
-      allUpdated.push(botMsg);
-      writeAll(allUpdated);
-      setMessages((prev) => [...prev, botMsg]);
-    }, Math.random() * 3000 + 1500);
+      const afterTyping = readAll().filter((m) => m.id !== typingMsg.id);
+      writeAll([...afterTyping, botMsg]);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === typingMsg.id ? botMsg : m))
+      );
+    } catch (err) {
+      const errorMsg = {
+        ...typingMsg,
+        texto:
+          "⚠️ Error al consultar el modelo.\n" +
+          (err?.message ? `Detalle: ${err.message}` : ""),
+        typing: false,
+      };
+
+      const afterTyping = readAll().filter((m) => m.id !== typingMsg.id);
+      writeAll([...afterTyping, errorMsg]);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === typingMsg.id ? errorMsg : m))
+      );
+    } finally {
+      setPending(false);
+    }
   };
 
   // ======================
-  // Enviar mensaje con Enter
+  // Limpiar chat
+  // ======================
+  const clearChat = () => {
+    if (pending) return;
+    if (!confirm("¿Seguro que querés borrar todo el chat?")) return;
+
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(AUTOINC_KEY);
+    setMessages([]);
+  };
+
+  // ======================
+  // Enviar con Enter
   // ======================
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -110,7 +171,15 @@ export default function ChatBotPage() {
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>CARPI</h2>
+        <h2>Boticcelli</h2>
+        <button
+          className="btn clear"
+          onClick={clearChat}
+          title="Vaciar conversación"
+          disabled={pending || messages.length === 0}
+        >
+          🗑 Vaciar chat
+        </button>
       </div>
 
       <div className="chat-messages">
@@ -119,7 +188,15 @@ export default function ChatBotPage() {
             key={m.id}
             className={`message ${m.tipo === "bot" ? "bot" : "user"}`}
           >
-            <div className="message-text">{m.texto}</div>
+            <div className="message-text">
+              {m.texto?.split("\n").map((line, i) => (
+                <span key={i}>
+                  {line}
+                  <br />
+                </span>
+              ))}
+              {m.typing ? <span className="typing-dot">▌</span> : null}
+            </div>
             <div className="message-time">{m.fecha}</div>
           </div>
         ))}
@@ -129,13 +206,18 @@ export default function ChatBotPage() {
       <div className="chat-input">
         <textarea
           rows="2"
-          placeholder="Escribí tu mensaje…"
+          placeholder={pending ? "Consultando..." : "Escribí tu mensaje…"}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKey}
+          disabled={pending}
         />
-        <button className="btn primary" onClick={() => sendMessage(input)}>
-          Enviar
+        <button
+          className="btn primary"
+          onClick={() => sendMessage(input)}
+          disabled={pending}
+        >
+          {pending ? "Enviando..." : "Enviar"}
         </button>
       </div>
     </div>

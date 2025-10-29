@@ -1,0 +1,101 @@
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 10px;
+}
+
+.login-content {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-title {
+  text-align: center;
+  color: #333;
+  margin-bottom: 30px;
+  font-size: 28px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #555;
+  font-weight: 500;
+  position: relative;
+}
+
+.password-label {
+  position: relative;
+}
+
+.login-input {
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 5px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  cursor: pointer;
+  font-size: 20px;
+  user-select: none;
+}
+
+.login-button {
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin-top: 10px;
+}
+
+.login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.login-button:active {
+  transform: translateY(0);
+}
+
+.login-error-container {
+  margin-top: 20px;
+  padding: 12px;
+  background: #fee;
+  border-left: 4px solid #f44;
+  border-radius: 4px;
+}
+
+.login-error-message {
+  color: #c33;
+  margin: 0;
+  font-size: 14px;
+}

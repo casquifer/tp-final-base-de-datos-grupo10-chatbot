@@ -7,7 +7,7 @@ export default function ChatBotPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
-  const userId = 1000; // Siempre fijo, no se muestra en UI
+  const userId = 1; // Siempre fijo, no se muestra en UI
 
   // ======================
   // Helpers

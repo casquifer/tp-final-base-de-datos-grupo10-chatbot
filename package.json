@@ -1,6 +1,8 @@
 {
   "dependencies": {
-    "react-router-dom": "^7.9.4"
+    "lucide-react": "^0.548.0",
+    "react-router-dom": "^7.9.4",
+    "tailwindcss": "^4.1.16"
   },
   "devDependencies": {
     "@types/react-router-dom": "^5.3.3"

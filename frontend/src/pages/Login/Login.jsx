@@ -5,8 +5,6 @@ import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const [error, setError] = useState(null);
-  const user = 'tito'
-  const pass = '1234'
 
   const loginFields = [
     {

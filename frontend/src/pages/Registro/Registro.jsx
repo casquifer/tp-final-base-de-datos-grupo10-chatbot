@@ -71,14 +71,14 @@ const Registro = () => {
   return (
     
     <div className="login-page">
-      <div className="login-hero">
-        <h1 className="hero-title">Registrate a Botichelli</h1>
-        <p className="hero-subtitle">Completa tus datos para realizar consultas personalizadas</p>
+      <div className="login-intro">
+        <h1 className="intro-title">Registrate a Botichelli</h1>
+        <p className="intro-subtitle">Completa tus datos para realizar consultas personalizadas</p>
       </div>
       <div className="login-form-container">
         <AuthForm
-          title="Crear cuenta"
-          fields={campos}
+          titulo="Crear cuenta"
+          campos={campos}
           onSubmit={handleRegister}
           submitButtonText="Registrarse"
           error={error}

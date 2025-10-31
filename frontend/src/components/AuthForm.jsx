@@ -3,14 +3,14 @@ import "../styles/form-datos.css";
 import BotonNavegacion from './BotonNavegacion';
 
 const AuthForm = ({ 
-  title, 
-  fields, 
+  titulo, 
+  campos, 
   onSubmit, 
   submitButtonText,
   error 
 }) => {
   const [formData, setFormData] = useState(
-    fields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {})
+    campos.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {})
   );
   const [showPasswords, setShowPasswords] = useState({});
 
@@ -31,17 +31,17 @@ const AuthForm = ({
   };
 
   return (
-    <div className="login-container">
-      <div className="login-content">
-        <h1 className="login-title">{title}</h1>
-        <div className="login-form" onKeyDown={handleKeyDown}>
-          {fields.map(field => (
+    <div className="form-container">
+      <div className="form-content">
+        <h1 className="form-titulo">{titulo}</h1>
+        <div className="form" onKeyDown={handleKeyDown}>
+          {campos.map(field => (
             <label key={field.name} className={field.type === 'password' ? 'password-label' : ''}>
               {field.label}{field.required && '*'}
               <input
                 type={field.type === 'password' && showPasswords[field.name] ? 'text' : field.type}
                 placeholder={field.placeholder}
-                className="login-input"
+                className="form-input"
                 value={formData[field.name]}
                 onChange={(e) => handleChange(field.name, e.target.value)}
               />
@@ -55,16 +55,16 @@ const AuthForm = ({
               )}
             </label>
           ))}
-          <button className="login-button" onClick={handleSubmit}>
+          <button className="form-button" onClick={handleSubmit}>
             {submitButtonText}
           </button>
         </div>
         {error && (
-          <div className="login-error-container">
-            <p className="login-error-message">{error}</p>
+          <div className="form-error">
+            <p className="form-error-mensaje">{error}</p>
           </div>
         )}
-        {title=='Iniciar sesión' ? 
+        {titulo=='Iniciar sesión' ? 
         <BotonNavegacion 
           texto={'No tenés cuenta?'}
           boton={'Crear cuenta'}

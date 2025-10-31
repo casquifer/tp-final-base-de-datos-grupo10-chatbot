@@ -51,14 +51,14 @@ const Login = () => {
 
   return (
     <div className="login-page">
-      <div className="login-hero">
-        <h1 className="hero-title">Bienvenido a Botichelli</h1>
-        <p className="hero-subtitle">Accede con tu cuenta para realizar consultas</p>
+      <div className="login-intro">
+        <h1 className="intro-title">Bienvenido a Botichelli</h1>
+        <p className="intro-subtitle">Accede con tu cuenta para realizar consultas</p>
       </div>
       <div className="login-form-container">
         <AuthForm
-          title="Iniciar sesión"
-          fields={loginFields}
+          titulo="Iniciar sesión"
+          campos={loginFields}
           onSubmit={handleLogin}
           submitButtonText="Iniciar sesión"
           error={error}

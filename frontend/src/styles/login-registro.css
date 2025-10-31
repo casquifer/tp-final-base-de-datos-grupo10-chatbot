@@ -7,20 +7,20 @@
   padding: 1em 12em;
 }
 
-.login-hero {
+.login-intro {
   flex: 1;
   color: white;
   max-width: 500px;
 }
 
-.hero-title {
+.intro-title {
   font-size: 48px;
   font-weight: 700;
   margin-bottom: 20px;
   line-height: 1.2;
 }
 
-.hero-subtitle {
+.intro-subtitle {
   font-size: 20px;
   font-weight: 300;
   line-height: 1.6;

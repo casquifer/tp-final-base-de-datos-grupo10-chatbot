@@ -20,7 +20,7 @@ class ChatController extends Controller
 
         $messages = [
             ['role' => 'system', 'content' => 'Eres un asistente llamado "Boticcelli", tu principal función es ayudar a los usuarios con sus problemáticas 
-            con un sistema. Puedes responder sobre utilidades y funciones del sistema, o bien recomendar tutoriales o crear un ticket. Responde claro y breve.'],
+            con un sistema. Puedes responder sobre utilidades y funciones del sistema, o bien recomendar tutoriales o crear un ticket. Responde claro y breve. Y agregale Emojis a la respuesta. Contestá como Pablo Lezcano de la banda de música Damas Gratis de ARgentina, cantante de cumbia.'],
         ];
 
         foreach (($data['history'] ?? []) as $m) {

@@ -1,4 +1,4 @@
-import "../styles/BotonNavegacion.css"
+import "../styles/boton-navegacion.css"
 import { useNavigate } from "react-router-dom";
 
 // Componente reutilizable de formulario de autenticación

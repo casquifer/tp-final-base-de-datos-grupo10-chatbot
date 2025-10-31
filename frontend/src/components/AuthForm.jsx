@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import "../styles/formAuth.css";
+import "../styles/form-datos.css";
 import BotonNavegacion from './BotonNavegacion';
 
 const AuthForm = ({ 

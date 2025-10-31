@@ -2,6 +2,7 @@ import { useState } from "react";
 import AuthForm from "../../components/AuthForm";
 import axios from 'axios'
 import { useNavigate } from "react-router-dom";
+import '../../styles/login-registro.css';
 
 const Registro = () => {
   const [error, setError] = useState(null);
@@ -68,13 +69,22 @@ const Registro = () => {
   };
 
   return (
-    <AuthForm
-      title="Crear cuenta"
-      fields={campos}
-      onSubmit={handleRegister}
-      submitButtonText="Registrarse"
-      error={error}
-    />
+    
+    <div className="login-page">
+      <div className="login-hero">
+        <h1 className="hero-title">Registrate a Botichelli</h1>
+        <p className="hero-subtitle">Completa tus datos para realizar consultas personalizadas</p>
+      </div>
+      <div className="login-form-container">
+        <AuthForm
+          title="Crear cuenta"
+          fields={campos}
+          onSubmit={handleRegister}
+          submitButtonText="Registrarse"
+          error={error}
+        />
+      </div>
+    </div>
   );
 };
 

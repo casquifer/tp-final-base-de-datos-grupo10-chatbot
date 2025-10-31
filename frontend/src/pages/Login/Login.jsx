@@ -2,10 +2,11 @@ import { useState } from "react";
 import AuthForm from "../../components/AuthForm";
 import axios from 'axios';
 import { useNavigate } from "react-router-dom";
+import '../../styles/login-registro.css';
 
 const Login = () => {
   const [error, setError] = useState(null);
-
+  
   const loginFields = [
     {
       name: 'username',
@@ -49,13 +50,21 @@ const Login = () => {
   };
 
   return (
-    <AuthForm
-      title="Iniciar sesión"
-      fields={loginFields}
-      onSubmit={handleLogin}
-      submitButtonText="Iniciar sesión"
-      error={error}
-    />
+    <div className="login-page">
+      <div className="login-hero">
+        <h1 className="hero-title">Bienvenido a Botichelli</h1>
+        <p className="hero-subtitle">Accede con tu cuenta para realizar consultas</p>
+      </div>
+      <div className="login-form-container">
+        <AuthForm
+          title="Iniciar sesión"
+          fields={loginFields}
+          onSubmit={handleLogin}
+          submitButtonText="Iniciar sesión"
+          error={error}
+        />
+      </div>
+    </div>
   );
 };
 

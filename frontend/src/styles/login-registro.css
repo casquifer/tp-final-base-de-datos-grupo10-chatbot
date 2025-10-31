@@ -1,0 +1,34 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1em 12em;
+}
+
+.login-hero {
+  flex: 1;
+  color: white;
+  max-width: 500px;
+}
+
+.hero-title {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.hero-subtitle {
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1.6;
+  opacity: 0.95;
+}
+
+.login-form-container {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 400px;
+}

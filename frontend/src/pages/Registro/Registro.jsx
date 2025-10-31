@@ -1,8 +1,11 @@
 import { useState } from "react";
 import AuthForm from "../../components/AuthForm";
+import axios from 'axios'
+import { useNavigate } from "react-router-dom";
 
 const Registro = () => {
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   const campos = [
     {
@@ -50,13 +53,15 @@ const Registro = () => {
         throw new Error('La contraseña debe tener al menos 6 caracteres.');
       }
 
-      console.log('Registro simulado:', {
-        name: formData.name,
-        email: formData.email,
+      const nuevoUsuario = {
+        username: formData.name,
         password: formData.password
-      });
+      }
       
+      const resp = await axios.post('http://localhost:9000/registro/crear', nuevoUsuario)
       alert('¡Registro exitoso!');
+      navigate('/login')
+      
     } catch (err) {
       setError(err.message || 'Ocurrió un error. Inténtalo de nuevo.');
     }

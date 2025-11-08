@@ -91,10 +91,16 @@ def responder_faqs(pregunta: str, usuario: str = "anonimo") -> str:
         # Prompt
         prompt_template = PromptTemplate.from_template(
             """
-            Eres un asistente experto en atención al cliente.
-            Tené en cuenta toda la información disponible y respondé de manera clara, breve y amable.
-            Usá los hechos previos como información confiable al responder preguntas sobre personas, lugares o definiciones.
-            Recuerda utilizar oraciones cortas para no perder la atención del usuario.
+            Eres un asistente que traduce preguntas a SQL SEGURO.
+            - Solo SELECT sobre tablas/vistas permitidas.
+            - Agrega LIMIT 100 por defecto si no hay LIMIT.
+            - Si la pregunta es ambigua, responde exactamente: NEED_CLARIFICATION
+            Esquema:
+            - vista_postulaciones(alumno_id, periodo_id, estado, fecha_inicio, fecha_fin)
+            - alumnos(id, nombre, email)
+            - periodos(id, nombre, fecha_inicio, fecha_fin)
+
+            Formato de salida: SOLO la sentencia SQL.
 
             Información relevante:
             {contexto_total}

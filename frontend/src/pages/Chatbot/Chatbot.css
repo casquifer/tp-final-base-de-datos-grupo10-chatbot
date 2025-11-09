@@ -18,7 +18,7 @@ body{
 .chat-container {
   display: flex;
   flex-direction: column;
-  max-height: 100vh;
+  height: 100vh;
   max-width: 700px;
   margin: 0 auto;
   border: 1px solid #222;
@@ -108,50 +108,40 @@ body{
   cursor: pointer;
 }
 
-.typing-indicator {
+.typing-dot {
+  display: inline-block;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to { visibility: hidden; }
+}
+
+.chat-header {
   display: flex;
-  gap: 4px;
-  padding: 8px;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--color-primario, #0077cc);
+  color: white;
+  padding: 0.5em 1em;
+  border-radius: 8px 8px 0 0;
 }
 
-.typing-indicator span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #999;
-  animation: typing 1.4s infinite;
+.btn.clear {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.6);
+  color: white;
+  padding: 0.3em 0.8em;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
+.btn.clear:hover {
+  background: rgba(255,255,255,0.15);
 }
 
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing {
-  0%, 60%, 100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-10px);
-  }
-}
-
-.username-badge {
-  font-size: 0.9em;
-  background: rgba(255,255,255,0.2);
-  padding: 4px 12px;
-  border-radius: 12px;
-}
-
-.welcome-message {
-  text-align: center;
-  padding: 40px 20px;
-  color: #666;
-}
-
-.welcome-message p {
-  margin: 10px 0;
+.btn.clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

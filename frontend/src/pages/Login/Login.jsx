@@ -27,33 +27,27 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleLogin = async (formData) => {
-  setError(null);
-  try {
-    if (!formData.username || !formData.password) {
-      throw new Error('Por favor, completa todos los campos.');
+    setError(null);
+    try {
+      if (!formData.username || !formData.password) {
+        throw new Error('Por favor, completa todos los campos.');
+      }
+
+      console.log('Inicio de sesión simulado:', formData);
+      const resp = await axios.post('http://localhost:9000/login', formData)
+      if(resp.data.ok){
+        navigate('/Chatbot')
+      } else{
+        throw new Error('El usuario o la contraseña es incorrecto')
+      }
+    } catch (err) {
+      if (err.response && err.response.status === 401) {
+        setError('Usuario no autorizado. Verificá tus credenciales.');
+      } else {
+        setError(err.message || 'Ocurrió un error. Inténtalo de nuevo.');
+      }
     }
-    
-    console.log('Intentando login con:', formData);
-    const resp = await axios.post('http://localhost:8000/login', formData);
-    
-    console.log('Respuesta del servidor:', resp.data);
-    
-    
-    if(resp.status === 200){
-      console.log('Login exitoso, redirigiendo...');
-      // Opcional: guardar el usuario en localStorage o context
-      localStorage.setItem('username', resp.data.username);
-      navigate('/Chatbot');
-    }
-  } catch (err) {
-    console.error('Error en login:', err);
-    if (err.response && err.response.status === 401) {
-      setError('Usuario o contraseña incorrectos.');
-    } else {
-      setError(err.message || 'Ocurrió un error. Inténtalo de nuevo.');
-    }
-  }
-};
+  };
 
   return (
     <div className="login-page">

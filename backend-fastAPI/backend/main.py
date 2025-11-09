@@ -2,15 +2,29 @@ from fastapi import FastAPI, Query, HTTPException
 from langchain_community.chat_models import ChatOllama
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
+from fastapi.middleware.cors import CORSMiddleware  
 import mysql.connector
 import os
 import time
 import traceback
+from pydantic import BaseModel
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 # ---------------------------------------------------------
 # 🚀 Configuración general
 # ---------------------------------------------------------
 app = FastAPI(title="Chatbot - FAQs (Ollama Local)")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite todos los orígenes
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Configuración de conexión a MySQL
 MYSQL_CONFIG = {
@@ -177,3 +191,23 @@ def estado_conexiones():
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
+    
+@app.post("/login")
+def login(credentials: LoginRequest):
+    usuarios_mock = {
+        "santi": "1234"
+    }
+    
+    if credentials.username in usuarios_mock and usuarios_mock[credentials.username] == credentials.password:
+        return {
+            "ok": True,
+            "status": "success",
+            "message": "Login exitoso",
+            "username": credentials.username,
+            "authenticated": True
+        }
+    else:
+        raise HTTPException(
+            status_code=401,
+            detail="Usuario o contraseña incorrectos"
+        )

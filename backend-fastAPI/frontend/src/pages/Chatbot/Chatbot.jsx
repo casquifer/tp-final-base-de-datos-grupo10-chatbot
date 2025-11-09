@@ -1,13 +1,17 @@
 import React, { useEffect, useState, useRef } from "react";
+import axios from "axios";
 import "./Chatbot.css";
 
-const MOCK_KEY = "mock_consultas_rows";
+const BACKEND_URL = "http://localhost:8000";
 
 export default function ChatBotPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-  const userId = 1; // Siempre fijo, no se muestra en UI
+  
+  // Obtener username del localStorage (del login)
+  const username = localStorage.getItem('username') || 'anonimo';
 
   // ======================
   // Helpers
@@ -16,82 +20,70 @@ export default function ChatBotPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const readAll = () => {
-    try {
-      return JSON.parse(localStorage.getItem(MOCK_KEY) || "[]");
-    } catch {
-      return [];
-    }
-  };
-
-  const writeAll = (rows) => {
-    localStorage.setItem(MOCK_KEY, JSON.stringify(rows));
-  };
-
   const nowStr = () => {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  // =======================
-  // Cargar mensajes al inicio
   // ======================
-  useEffect(() => {
-    const all = readAll();
-    const userMsgs = all.filter((m) => m.id_usuario === userId);
-    setMessages(userMsgs);
-  }, []);
-
-  // ======================
-  // Scroll automático cada vez que cambian los mensajes
+  // Scroll automático
   // ======================
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   // ======================
-  // Enviar mensaje
+  // Enviar mensaje al backend
   // ======================
-  const sendMessage = (text) => {
-    if (!text.trim()) return;
+  const sendMessage = async (text) => {
+    if (!text.trim() || isLoading) return;
 
-    // Crear ID automático
-    const auto = Number(localStorage.getItem("mock_autoinc") || "1000") + 1;
-    localStorage.setItem("mock_autoinc", String(auto));
-
+    // Agregar mensaje del usuario a la UI
     const userMsg = {
-      id: auto,
-      id_usuario: userId,
-      fecha: nowStr(),
+      id: Date.now(),
       texto: text,
       tipo: "user",
+      fecha: nowStr(),
     };
 
-    const all = readAll();
-    all.push(userMsg);
-    writeAll(all);
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setIsLoading(true);
 
-    // Respuesta automática del bot
-    setTimeout(() => {
-      const botAutoId = Number(localStorage.getItem("mock_autoinc")) + 1;
-      localStorage.setItem("mock_autoinc", String(botAutoId));
+    try {
+      // Llamar al backend
+      const response = await axios.get(`${BACKEND_URL}/preguntar`, {
+        params: {
+          pregunta: text,
+          usuario: username  // Opcional: si quieres pasar el usuario
+        }
+      });
 
+      // Agregar respuesta del bot
       const botMsg = {
-        id: botAutoId,
-        id_usuario: userId,
-        fecha: nowStr(),
-        texto: "¡Hola! ¿Todo Piola?",
+        id: Date.now() + 1,
+        texto: response.data.respuesta,
         tipo: "bot",
+        fecha: nowStr(),
       };
 
-      const allUpdated = readAll();
-      allUpdated.push(botMsg);
-      writeAll(allUpdated);
       setMessages((prev) => [...prev, botMsg]);
-    }, Math.random() * 3000 + 1500);
+    } catch (error) {
+      console.error("Error al enviar mensaje:", error);
+      
+      // Mensaje de error
+      const errorMsg = {
+        id: Date.now() + 1,
+        texto: "Lo siento, hubo un error al procesar tu mensaje. Por favor, intentá de nuevo.",
+        tipo: "bot",
+        fecha: nowStr(),
+      };
+
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // ======================
@@ -110,10 +102,18 @@ export default function ChatBotPage() {
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>CARPI</h2>
+        <h2>Botichelli</h2>
+        <span className="username-badge">{username}</span>
       </div>
 
       <div className="chat-messages">
+        {messages.length === 0 && (
+          <div className="welcome-message">
+            <p>👋 ¡Hola! Soy Botichelli, tu asistente virtual.</p>
+            <p>¿En qué puedo ayudarte hoy?</p>
+          </div>
+        )}
+
         {messages.map((m) => (
           <div
             key={m.id}
@@ -123,6 +123,19 @@ export default function ChatBotPage() {
             <div className="message-time">{m.fecha}</div>
           </div>
         ))}
+
+        {isLoading && (
+          <div className="message bot">
+            <div className="message-text">
+              <div className="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -133,9 +146,14 @@ export default function ChatBotPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKey}
+          disabled={isLoading}
         />
-        <button className="btn primary" onClick={() => sendMessage(input)}>
-          Enviar
+        <button 
+          className="btn primary" 
+          onClick={() => sendMessage(input)}
+          disabled={isLoading || !input.trim()}
+        >
+          {isLoading ? "Enviando..." : "Enviar"}
         </button>
       </div>
     </div>

@@ -43,6 +43,21 @@ export default function ChatBotPage() {
     return current;
   };
 
+  // Convierte cualquier valor a arreglo de líneas imprimibles
+  const toLines = (val) => {
+    if (val == null) return [""];
+    if (typeof val === "string") return val.split("\n");
+    if (typeof val === "object") {
+      if (typeof val.content === "string") return val.content.split("\n");
+      try {
+        return [JSON.stringify(val)];
+      } catch {
+        return [String(val)];
+      }
+    }
+    return [String(val)];
+  };
+
   // ======================
   // Cargar mensajes al inicio
   // ======================
@@ -66,7 +81,10 @@ export default function ChatBotPage() {
     () => (msgs) => {
       const mapped = msgs.map((m) => ({
         role: m.tipo === "bot" ? "assistant" : "user",
-        content: m.texto,
+        content:
+          typeof m.texto === "string"
+            ? m.texto
+            : m?.texto?.content ?? "", // por si quedó objeto
       }));
       const MAX = 24; // últimas 12 interacciones (user+bot)
       return mapped.slice(-MAX);
@@ -111,11 +129,23 @@ export default function ChatBotPage() {
 
     try {
       const history = buildHistory(newAll);
-      const replyText = await sendChat({ userId, message: trimmed, history });
+
+      // resp puede ser string o un objeto { ok, reply: { type, content }, ... }
+      const resp = await sendChat({ userId, message: trimmed, history });
+
+      // Normalizo a STRING siempre
+      const replyText =
+        typeof resp === "string"
+          ? resp
+          : resp?.reply?.content ??
+            resp?.content ??
+            resp?.message ??
+            // último recurso: serializar para no romper el render
+            JSON.stringify(resp);
 
       const botMsg = {
         ...typingMsg,
-        texto: replyText,
+        texto: replyText, // <-- garantizado string
         typing: false,
       };
 
@@ -189,7 +219,7 @@ export default function ChatBotPage() {
             className={`message ${m.tipo === "bot" ? "bot" : "user"}`}
           >
             <div className="message-text">
-              {m.texto?.split("\n").map((line, i) => (
+              {toLines(m.texto).map((line, i) => (
                 <span key={i}>
                   {line}
                   <br />
@@ -223,3 +253,4 @@ export default function ChatBotPage() {
     </div>
   );
 }
+

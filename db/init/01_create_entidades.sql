@@ -1,6 +1,6 @@
 /*
 01_create_entidades.sql
-Entidades con dependencias: USUARIOS, CONVERSACIONES, MENSAJES (con triggers XOR), TICKETS
+Entidades con dependencias: USUARIOS, CONVERSACIONES, MENSAJES (con triggers), TICKETS
 */
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS CONVERSACIONES (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- Entidad: MENSAJES  (validación XOR por triggers)
+-- Entidad: MENSAJES  (validación por triggers)
 -- ============================================
 CREATE TABLE IF NOT EXISTS MENSAJES (
   id_mensaje       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -91,14 +91,17 @@ BEFORE INSERT ON MENSAJES
 FOR EACH ROW
 BEGIN
   -- usuario: no debe traer adjuntos
-  IF NEW.emisor = 'usuario' AND (NEW.id_faq IS NOT NULL OR NEW.id_recurso IS NOT NULL) THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Un mensaje de usuario no puede tener FAQ ni RECURSO adjuntos';
+  IF NEW.emisor = 'usuario'
+     AND (NEW.id_faq IS NOT NULL OR NEW.id_recurso IS NOT NULL) THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Un mensaje de usuario no puede tener FAQ ni RECURSO adjuntos';
   END IF;
 
-  -- bot: exactamente uno de los dos adjuntos
+  -- bot: debe traer al menos una cosa (FAQ, RECURSO o ambos)
   IF NEW.emisor = 'bot' THEN
-    IF ((NEW.id_faq IS NOT NULL) + (NEW.id_recurso IS NOT NULL)) <> 1 THEN
-      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Un mensaje del bot debe adjuntar exactamente UNA cosa: FAQ o RECURSO';
+    IF NEW.id_faq IS NULL AND NEW.id_recurso IS NULL THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Un mensaje del bot debe adjuntar al menos una cosa: FAQ o RECURSO';
     END IF;
   END IF;
 END$$
@@ -107,13 +110,18 @@ CREATE TRIGGER trg_mensajes_bu
 BEFORE UPDATE ON MENSAJES
 FOR EACH ROW
 BEGIN
-  IF NEW.emisor = 'usuario' AND (NEW.id_faq IS NOT NULL OR NEW.id_recurso IS NOT NULL) THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Un mensaje de usuario no puede tener FAQ ni RECURSO adjuntos';
+  -- usuario: no debe traer adjuntos
+  IF NEW.emisor = 'usuario'
+     AND (NEW.id_faq IS NOT NULL OR NEW.id_recurso IS NOT NULL) THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Un mensaje de usuario no puede tener FAQ ni RECURSO adjuntos';
   END IF;
 
+  -- bot: debe traer al menos una cosa (FAQ, RECURSO o ambos)
   IF NEW.emisor = 'bot' THEN
-    IF ((NEW.id_faq IS NOT NULL) + (NEW.id_recurso IS NOT NULL)) <> 1 THEN
-      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Un mensaje del bot debe adjuntar exactamente UNA cosa: FAQ o RECURSO';
+    IF NEW.id_faq IS NULL AND NEW.id_recurso IS NULL THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Un mensaje del bot debe adjuntar al menos una cosa: FAQ o RECURSO';
     END IF;
   END IF;
 END$$
@@ -149,4 +157,5 @@ CREATE TABLE IF NOT EXISTS TICKETS (
       FOREIGN KEY (id_destino) REFERENCES DESTINOS_ESCALADO(id_destino)
       ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 

@@ -27,7 +27,7 @@ class ChatController extends Controller
         $userText       = trim($data['message']);
         $conversationId = $data['conversationId'] ?? null;
 
-        // Conversación
+        // Conversación (por ahora mantenemos el 1001 fijo si no viene id)
         $conv = $conversationId
             ? Conversacion::find($conversationId)
             : Conversacion::firstOrCreate(
@@ -48,7 +48,8 @@ class ChatController extends Controller
             ]);
         } catch (\Throwable $e) {
             Log::error('Insert MENSAJES (usuario) falló: '.$e->getMessage(), [
-                'enum' => EmisorHelper::enumValues(), 'intent' => $userEmisor
+                'enum' => EmisorHelper::enumValues(),
+                'intent' => $userEmisor
             ]);
             // Segundo intento: usar primera opción del enum explícitamente
             $fallback = EmisorHelper::enumValues()[0] ?? null;
@@ -62,128 +63,163 @@ class ChatController extends Controller
             ]);
         }
 
-        // Retrieval desde tablas
-        [$bestFaq, $faqScore, $faqAlt]         = $this->bestFaq($userText);
-        [$bestRecurso, $recursoScore, $recAlt] = $this->bestRecurso($userText);
-        $minFaq = 0.55; $minRecurso = 0.55;
-
+        // === Búsqueda simple en tablas, SIN scores (pero mejorada) ===
+        $faq       = $this->findFaq($userText);       // puede ser null
+        $recurso   = $this->findRecurso($userText);   // puede ser null
         $botEmisor = EmisorHelper::valueFor('bot');
 
-        if ($bestFaq && $faqScore >= $minFaq && $faqScore >= $recursoScore) {
-            $botText = $this->armaRespuestaFaq($bestFaq);
-            Mensaje::create([
+        // === Armamos contexto de documentos (FAQS / RECURSOS) para el LLM ===
+        $docsContext = [];
+        $idFaq = null;
+        $idRecurso = null;
+
+        if ($faq) {
+            $docsContext[] = [
+                'tipo'      => 'FAQ',
+                'titulo'    => $faq->pregunta ?? '',
+                'contenido' => $faq->respuesta ?? '',
+            ];
+            $idFaq = (int) $faq->id_faq;
+        }
+
+        if ($recurso) {
+            // Incluimos descripción + URL en el contenido para que lo pueda envolver
+            $contenidoRecurso = trim(($recurso->descripcion ?? '') . "\nURL: " . ($recurso->url ?? ''));
+            $docsContext[] = [
+                'tipo'      => 'RECURSO',
+                'titulo'    => $recurso->titulo ?? '',
+                'contenido' => $contenidoRecurso,
+            ];
+            $idRecurso = (int) $recurso->id_recurso;
+        }
+
+        // === Historial de chat: últimos 10 mensajes de esta conversación ===
+        $emisorUserValue = EmisorHelper::valueFor('user');
+
+        $history = Mensaje::where('id_conversacion', $conv->id_conversacion)
+            ->orderBy('fecha_envio', 'desc')
+            ->limit(10)
+            ->get()
+            ->sortBy('fecha_envio')  // lo dejamos en orden cronológico
+            ->map(function (Mensaje $m) use ($emisorUserValue) {
+                return [
+                    'role'    => $m->emisor === $emisorUserValue ? 'user' : 'assistant',
+                    'content' => $m->contenido,
+                ];
+            })
+            ->values()
+            ->all();
+
+        // === SIEMPRE usamos el LLM, con:
+        // - userText (pregunta actual)
+        // - docsContext (FAQ/RECURSOS si los hay)
+        // - history (últimos 10 mensajes)
+        $botText = $this->bot->answerWithLLM($userText, $docsContext, $history);
+
+        $botMsg = null;
+
+        // Solo guardo si hay FAQ o RECURSO por la restricción de la BD
+        if ($idFaq !== null || $idRecurso !== null) {
+            $botMsg = Mensaje::create([
                 'id_conversacion' => $conv->id_conversacion,
                 'emisor'          => $botEmisor,
                 'contenido'       => $botText,
                 'fecha_envio'     => now(),
-                'id_faq'          => (int)$bestFaq->id_faq,
-                'id_recurso'      => null,
-            ]);
-            return response()->json([
-                'ok' => true,
-                'conversationId' => $conv->id_conversacion,
-                'userMessageId'  => $userMsg->id_mensaje,
-                'reply' => ['type' => 'text', 'content' => $botText]
+                'id_faq'          => $idFaq,
+                'id_recurso'      => $idRecurso,
             ]);
         }
-
-        if ($bestRecurso && $recursoScore >= $minRecurso) {
-            $botText = $this->armaRespuestaRecurso($bestRecurso);
-            Mensaje::create([
-                'id_conversacion' => $conv->id_conversacion,
-                'emisor'          => $botEmisor,
-                'contenido'       => $botText,
-                'fecha_envio'     => now(),
-                'id_faq'          => null,
-                'id_recurso'      => (int)$bestRecurso->id_recurso,
-            ]);
-            return response()->json([
-                'ok' => true,
-                'conversationId' => $conv->id_conversacion,
-                'userMessageId'  => $userMsg->id_mensaje,
-                'reply' => ['type' => 'text', 'content' => $botText]
-            ]);
-        }
-
-        // LLM con contexto (sin persistir bot)
-        $context = array_merge($faqAlt, $recAlt);
-        $llmText = $this->bot->answerWithLLM($userText, $context);
 
         return response()->json([
-            'ok' => true,
+            'ok'             => true,
             'conversationId' => $conv->id_conversacion,
             'userMessageId'  => $userMsg->id_mensaje,
-            'reply' => ['type' => 'text', 'content' => $llmText]
+            'botMessageId' => $botMsg ? $botMsg->id_mensaje : null,
+            'reply'          => ['type' => 'text', 'content' => $botText],
         ]);
     }
 
     /* ===================== Helpers ===================== */
 
-    private function norm(string $s): string {
-        $s = mb_strtolower($s, 'UTF-8');
-        $s = preg_replace('/\s+/', ' ', $s);
-        return trim($s);
+    /**
+     * Extrae palabras clave “útiles” desde la pregunta del usuario.
+     */
+    private function keywords(string $q): array
+    {
+        $q = mb_strtolower($q, 'UTF-8');
+        // reemplazo signos por espacio
+        $q = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', $q);
+        $parts = preg_split('/\s+/', $q, -1, PREG_SPLIT_NO_EMPTY);
+
+        // stopwords básicas en español (ampliadas)
+        $stopwords = [
+            'el','la','los','las','un','una','unos','unas',
+            'de','del','al','a','en','por','para','con','sobre',
+            'y','o','u','que','como','cual','cuales',
+            'es','son','hay','si','no','se','lo','su','sus',
+            'donde','dónde','cuando','cuándo',
+            // añadimos verbos/palabras que ensucian búsquedas de manuales:
+            'hago','hacer','puedo','quiero','necesito','tengo','tiene',
+            'manual','guia','guía','ayuda'
+        ];
+
+        $keywords = array_filter($parts, function ($w) use ($stopwords) {
+            return mb_strlen($w, 'UTF-8') >= 3 && !in_array($w, $stopwords, true);
+        });
+
+        return array_values(array_unique($keywords));
     }
 
-    private function score(string $query, string $text): float
+    /**
+     * Búsqueda simple de FAQ por texto del usuario.
+     * Antes usaba AND sobre todas las palabras, ahora usamos OR para ser más permisivos.
+     */
+    private function findFaq(string $q): ?object
     {
-        $q = $this->norm($query);
-        $t = $this->norm($text);
-        similar_text($q, $t, $pct);
-        return $pct / 100.0;
-    }
-
-    private function bestFaq(string $q): array
-    {
-        $rows = DB::table('FAQS')
-            ->select('id_faq','pregunta','respuesta')
-            ->whereNotNull('pregunta')
-            ->limit(1000)
-            ->get();
-
-        $best = null; $bestScore = 0.0;
-        $alts = [];
-        foreach ($rows as $r) {
-            $txt = $r->pregunta . ' ' . ($r->respuesta ?? '');
-            $s = $this->score($q, $txt);
-            $alts[] = [
-                'tipo'      => 'FAQ',
-                'titulo'    => $r->pregunta,
-                'contenido' => $r->respuesta ?? '',
-                'score'     => $s,
-                'id'        => $r->id_faq
-            ];
-            if ($s > $bestScore) { $bestScore = $s; $best = $r; }
+        $keywords = $this->keywords($q);
+        if (empty($keywords)) {
+            return null;
         }
-        usort($alts, fn($a,$b) => $b['score'] <=> $a['score']);
 
-        return [$best, $bestScore, array_slice($alts, 0, 3)];
+        return DB::table('FAQS')
+            ->select('id_faq', 'pregunta', 'respuesta')
+            ->where(function ($query) use ($keywords) {
+                $query->where(function ($sub) use ($keywords) {
+                    foreach ($keywords as $word) {
+                        $like = '%' . $word . '%';
+                        // usamos OR entre palabras para aumentar el recall
+                        $sub->orWhere('pregunta', 'LIKE', $like)
+                            ->orWhere('respuesta', 'LIKE', $like);
+                    }
+                });
+            })
+            ->orderBy('id_faq', 'ASC')
+            ->first();
     }
 
-    private function bestRecurso(string $q): array
+    /**
+     * Búsqueda simple de RECURSO por texto del usuario.
+     */
+    private function findRecurso(string $q): ?object
     {
-        $rows = DB::table('RECURSOS')
-            ->select('id_recurso','titulo','descripcion','url')
-            ->limit(1000)
-            ->get();
-
-        $best = null; $bestScore = 0.0;
-        $alts = [];
-        foreach ($rows as $r) {
-            $txt = ($r->titulo ?? '') . ' ' . ($r->descripcion ?? '');
-            $s = $this->score($q, $txt);
-            $alts[] = [
-                'tipo'      => 'RECURSO',
-                'titulo'    => $r->titulo ?? '(sin título)',
-                'contenido' => trim(($r->descripcion ?? '') . ' ' . ($r->url ?? '')),
-                'score'     => $s,
-                'id'        => $r->id_recurso
-            ];
-            if ($s > $bestScore) { $bestScore = $s; $best = $r; }
+        $keywords = $this->keywords($q);
+        if (empty($keywords)) {
+            return null;
         }
-        usort($alts, fn($a,$b) => $b['score'] <=> $a['score']);
 
-        return [$best, $bestScore, array_slice($alts, 0, 3)];
+        return DB::table('RECURSOS')
+            ->select('id_recurso', 'titulo', 'descripcion', 'url')
+            ->where(function ($query) use ($keywords) {
+                $query->where(function ($sub) use ($keywords) {
+                    foreach ($keywords as $word) {
+                        $like = '%' . $word . '%';
+                        $sub->orWhere('titulo', 'LIKE', $like)
+                            ->orWhere('descripcion', 'LIKE', $like);
+                    }
+                });
+            })
+            ->orderBy('id_recurso', 'ASC')
+            ->first();
     }
 
     private function armaRespuestaFaq(object $faq): string
@@ -202,5 +238,3 @@ class ChatController extends Controller
         return "🔗 *Recurso*: {$titulo}\n{$body}";
     }
 }
-
-

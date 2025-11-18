@@ -3,127 +3,126 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class BotService
 {
-    /**
-     * @param string $userText   Pregunta actual del usuario
-     * @param array  $docsContext Array de docs tipo:
-     *                            [
-     *                              ['tipo' => 'FAQ', 'titulo' => '...', 'contenido' => '...'],
-     *                              ['tipo' => 'RECURSO', 'titulo' => '...', 'contenido' => '...'],
-     *                            ]
-     * @param array  $history     Array de últimos mensajes:
-     *                            [
-     *                              ['role' => 'user'|'assistant', 'content' => '...'],
-     *                              ...
-     *                            ]
-     */
-    public function answerWithLLM(string $userText, array $docsContext = [], array $history = []): string
+    protected string $model;
+    protected string $baseUrl;
+
+    public function __construct()
     {
-        $model   = config('services.ollama.model', env('LLM_MODEL', 'llama3.2:3b'));
-        $baseUrl = rtrim(env('OLLAMA_BASE_URL', 'http://ollama:11434'), '/');
+        $this->model   = config('services.ollama.model', env('LLM_MODEL', 'llama3.2:3b'));
+        $this->baseUrl = rtrim(env('OLLAMA_BASE_URL', 'http://ollama:11434'), '/');
+    }
 
-        // ===== Contexto de documentos (FAQS / RECURSOS) =====
-        $snippets = [];
-        foreach ($docsContext as $i => $c) {
-            if ($i >= 4) break; // máximo 4 bloques de contexto
-            $tipo      = $c['tipo']      ?? 'Doc';
-            $titulo    = $c['titulo']    ?? '(sin título)';
-            $contenido = $c['contenido'] ?? '';
-            $snippets[] = "- {$tipo}: {$titulo}\n{$contenido}";
+    /**
+     * Usa el modelo SOLO para parafrasear contenido oficial (FAQS/RECURSOS).
+     *
+     * @param string $userText      Pregunta actual del usuario
+     * @param string $contenidoGuia Texto armado desde FAQS/RECURSOS
+     */
+    public function responderDesdeGuia(string $userText, string $contenidoGuia): string
+    {
+        // Si por alguna razón viene vacío, devolvemos directo el contenido
+        if (trim($contenidoGuia) === '') {
+            return "No encontré información en mis guías internas sobre esto 🤔. "
+                 . "¿Querés que genere un ticket para que te contacten o preferís darme más detalles?";
         }
 
-        $ctxParts = [];
-
-        if (!empty($snippets)) {
-            $ctxParts[] = "Contexto interno (guías oficiales FAQS/RECURSOS):\n"
-                . implode("\n\n", $snippets);
-        }
-
-        // ===== Historial reciente de la conversación =====
-        if (!empty($history)) {
-            $lines = [];
-            foreach ($history as $turn) {
-                $role    = $turn['role'] ?? 'user';
-                $speaker = $role === 'assistant' ? 'Boticcelli' : 'Usuario';
-                $content = $turn['content'] ?? '';
-                $lines[] = "{$speaker}: {$content}";
-            }
-
-            $ctxParts[] = "Historial reciente de la conversación (últimos "
-                . count($history) . " mensajes):\n"
-                . implode("\n", $lines);
-        }
-
-        $ctx = $ctxParts
-            ? (implode("\n\n", $ctxParts) . "\n")
-            : "Contexto interno: (vacío)\n";
-
-        // ===== System prompt =====
         $system = <<<SYS
-Sos Boticcelli, asistente del sistema UNSAM. Respondés siempre en español rioplatense, breve y claro. Agregá algunos emojis a las respuestas (1 o 2, no más).
+Tu nombre es "Boticcelli", eres asistente del sistema UNSAM. Respondés siempre en español rioplatense, breve y claro. Agregá 1 o 2 emojis, no más.
 
-Reglas generales:
-
-1) Si el contexto de guías (FAQS/RECURSOS) NO está vacío:
-   - Considerá esos textos como la única fuente de verdad.
-   - Respondé usando SOLO la información de esas guías.
-   - Podés parafrasear en tus palabras, pero NO inventes datos nuevos.
-   - Si un recurso contiene un link, mencioná el título y el link al final en una línea separada.
-
-2) Podés usar el historial reciente de conversación solo para mantener continuidad
-   (por ejemplo, recordar qué se venía hablando), pero nunca para inventar reglas o datos
-   que no estén en las guías internas.
-
-3) Si el contexto de guías está vacío:
-   - Si es un saludo o te preguntan quién sos, presentate brevemente como Boticcelli y ofrecé ayuda.
-   - Si la pregunta es sobre UNSAM, sistemas, alumnos, docentes, aulas virtuales, usuarios, claves, etc.
-     pero no tenés datos concretos, respondé algo como:
-     "No encontré información en mis guías internas sobre esto. ¿Querés que genere un ticket para que te contacten?"
-   - Si la pregunta es sobre temas ajenos a UNSAM (personas específicas, chistes, opiniones personales, etc.),
-     aclarar cortito que solo podés ayudar con consultas sobre los sistemas y servicios de UNSAM
-     y ofrecé redirigir la conversación a algo útil.
-
-4) No inventes restricciones raras del tipo "no puedo responder preguntas que contengan el término X".
-   Si no tenés info suficiente en las guías, decí simplemente que no la encontraste y ofrecé generar un ticket.
-
-5) No digas que sos un modelo de IA genérico; siempre sos Boticcelli, asistente del sistema UNSAM.
-
-Respuestas de 1 a 3 frases máximo.
+Usá EXCLUSIVAMENTE la información que te doy como contenido oficial (FAQS/RECURSOS). No inventes datos nuevos.
 SYS;
 
-        $prompt = $ctx . "\nUsuario pregunta ahora: «{$userText}»";
+        $userPrompt = <<<TXT
+Contenido oficial (FAQS/RECURSOS):
 
+{$contenidoGuia}
+
+---
+
+El usuario preguntó: «{$userText}».
+
+Respondé en 1 o 3 frases claras, amigables, usando SOLO la información del contenido oficial.
+TXT;
+
+        $messages = [
+            ['role' => 'system', 'content' => $system],
+            ['role' => 'user',   'content' => $userPrompt],
+        ];
+
+        return $this->callOllama($messages);
+    }
+
+    /**
+     * Cuando no hay FAQ ni RECURSO: repregunta o invita a iniciar ticket.
+     * Acá NO usamos el modelo para evitar alucinaciones y ahorrar recursos.
+     */
+    public function repreguntarSinGuia(string $userText): string
+    {
+        $len = mb_strlen($userText, 'UTF-8');
+
+        // Si la consulta es muy corta, primero pedimos más detalle
+        if ($len < 20) {
+            return "No encontré información concreta en mis guías internas sobre esto 🤔. "
+                 . "¿Me contás un poquito más de la consulta así veo si te puedo ayudar mejor?";
+        }
+
+        // Si ya es una consulta más larga, ofrecemos directamente el ticket
+        return "No encontré información en mis guías internas sobre este tema 😕. "
+             . "¿Querés que genere un ticket para que te contacten desde soporte?";
+    }
+
+    /**
+     * Llamado genérico a Ollama, con logging y timeout más holgado.
+     *
+     * @param array $messages Mensajes estilo OpenAI/Ollama (system/user/assistant)
+     * @param array $options  Opciones extra para el modelo
+     */
+    protected function callOllama(array $messages, array $options = []): string
+    {
         $payload = [
-            'model'    => $model,
-            'messages' => [
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user',   'content' => $prompt],
-            ],
-            'stream'  => false,
-            'options' => [
+            'model'    => $this->model,
+            'messages' => $messages,
+            'stream'   => false,
+            'options'  => array_merge([
                 'temperature' => 0.1,   // bajo = menos alucinaciones
                 'top_p'       => 0.9,
-                'num_ctx'     => 2048,
-            ],
+                'num_ctx'     => 1024,  // reducimos contexto para no reventar memoria
+            ], $options),
         ];
 
         try {
-            $resp = Http::timeout(20)->post("{$baseUrl}/api/chat", $payload);
+            $resp = Http::timeout(60)->post("{$this->baseUrl}/api/chat", $payload);
 
             if (! $resp->ok()) {
-                return "No pude consultar al modelo en este momento. Probá de nuevo o decime si genero un ticket.";
+                Log::error('Ollama devolvió status no OK', [
+                    'status' => $resp->status(),
+                    'body'   => $resp->body(),
+                ]);
+
+                return "No pude consultar al modelo en este momento 😕. Probá de nuevo o decime si genero un ticket.";
             }
 
             $data = $resp->json();
+
+            Log::debug('Ollama respondió OK', [
+                'data_preview' => $data ? substr(json_encode($data), 0, 2000) : null,
+            ]);
+
             $text = $data['message']['content']
                 ?? ($data['choices'][0]['message']['content'] ?? null);
 
-            return $text ?: "Se generó un inconveniente con la respuesta. ¿Querés que genere un ticket?";
+            return $text ?: "Se generó un inconveniente con la respuesta 😅. ¿Querés que genere un ticket?";
         } catch (\Throwable $e) {
-            // Podés loguear $e->getMessage() si querés
-            return "No pude consultar al modelo en este momento. Probá de nuevo o decime si genero un ticket.";
+            Log::error('Error llamando a Ollama', [
+                'msg'   => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return "No pude consultar al modelo en este momento 😕. Probá de nuevo o decime si genero un ticket.";
         }
     }
 }
